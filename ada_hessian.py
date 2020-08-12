@@ -1,9 +1,9 @@
 import torch
-from torch.optim.optimizer import Optimizer
+import torch.distributed as dist
 
 
-class AdaHessian(Optimizer):
-    def __init__(self, params, lr=0.15, betas=(0.9, 0.999), eps=1e-4, weight_decay=0, hessian_power=1, auto_hess=True):
+class AdaHessian(torch.optim.optimizer.Optimizer):
+    def __init__(self, params, lr=0.15, betas=(0.9, 0.999), eps=1e-4, weight_decay=0, hessian_power=1, auto_hess=True, distributed=False):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -16,6 +16,7 @@ class AdaHessian(Optimizer):
             raise ValueError("Invalid Hessian power value: {}".format(hessian_power))
 
         self.auto_hess = auto_hess
+        self.distributed = distributed
 
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, hessian_power=hessian_power)
         super(AdaHessian, self).__init__(params, defaults)
@@ -32,6 +33,8 @@ class AdaHessian(Optimizer):
         grads = [p.grad for p in params]
 
         z = [torch.randint_like(p, high=2) * 2 - 1 for p in params]  # Rademacher distribution {-1.0, 1.0}
+        if self.distributed:
+            dist.all_reduce_multigpu(z, op=dist.ReduceOp.PRODUCT)  # make sure the result is still from Rademacher distribution
 
         h_zs = torch.autograd.grad(grads, params, grad_outputs=z, only_inputs=True, retain_graph=False)
         for h_z, z_i, p in zip(h_zs, z, params):
