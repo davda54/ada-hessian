@@ -31,8 +31,42 @@ optimizer = AdaHessian(model.parameters(), auto_hess=False)
 for i, (input, output) in enumerate(data):
   loss = loss_function(output, model(input)) / accumulation_steps
   loss.backward(create_graph=True)
-  optimizer.set_hess()  # this line accumulates the hessian trace for each parameter
+  optimizer.set_hessian()  # accumulate the hessian trace for each parameter
   if (i + 1) % accumulation_steps == 0:
     optimizer.step()
+    optimizer.zero_hessian()  # zero out the hessian trace for each parameter
 ...
 ```
+
+## Documentation
+
+#### `AdaHessian.__init__`
+
+| **Argument**    | **Description** |
+| :-------------- | :-------------- |
+| `params` (iterable) | iterable of parameters to optimize or dicts defining parameter groups |
+| `lr` (float, optional) | learning rate *(default: 0.1)* |
+| `betas`((float, float), optional) | coefficients used for computing running averages of gradient and the squared hessian trace *(default: (0.9, 0.999))* |
+| `eps` (float, optional)           | term added to the denominator to improve numerical stability *(default: 1e-4)* |
+| `weight_decay` (float, optional)   | weight decay (L2 penalty) *(default: 0.0)* |
+| `hessian_power` (float, optional)  | exponent of the hessian trace *(default: 1.0)* |
+| `auto_hessian` (bool, optional)  | automatically call `set_hessian()` and `zero_hessian()` within each step *(default: True)* |
+| `update_each` (int, optional)   | compute the hessian trace approximation after this number of steps (to save time) *(default: 1)* |
+| `distributed` (bool, optional)   | use a distributed version which shares the hessian traces across multiple GPUs *(default: False)* |
+
+#### `AdaHessian.step`
+
+Performs a single optimization step.
+
+| **Argument**    | **Description** |
+| :-------------- | :-------------- |
+| `closure` (callable, optional)        | a closure that reevaluates the model and returns the loss *(default: None)* |
+
+#### `AdaHessian.set_hessian`
+
+Computes the Hutchinson approximation of the hessian trace and accumulates it for each trainable parameter. It is called automatically when `auto_hessian == True`.
+
+
+#### `AdaHessian.zero_hessian`
+
+Zeros- ut the accumalated hessian traces. It is called automatically when `auto_hessian == True`.
