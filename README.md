@@ -1,6 +1,6 @@
 # AdaHessian  🚀
 
-Unofficial implementation of the AdaHessian optimizer. Created as a drop-in replacement for any PyTorch optimizer – you only need to set `create_graph=True` in the `backward()` call and everything else should work 🥳
+Unofficial implementation of the [AdaHessian optimizer](https://arxiv.org/abs/2006.00719). Created as a drop-in replacement for any PyTorch optimizer – you only need to set `create_graph=True` in the `backward()` call and everything else should work 🥳
 
 ## Usage
 
