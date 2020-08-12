@@ -2,6 +2,10 @@
 
 Unofficial implementation of the [AdaHessian optimizer](https://arxiv.org/abs/2006.00719). Created as a drop-in replacement for any PyTorch optimizer – you only need to set `create_graph=True` in the `backward()` call and everything else should work 🥳
 
+Our version supports multiple `param_groups`, gradient (hessian) accumulation and delayed hessian updates.
+
+<br>
+
 ## Usage
 
 #### Simple example
@@ -38,6 +42,8 @@ for i, (input, output) in enumerate(data):
 ...
 ```
 
+<br>
+
 ## Documentation
 
 #### `AdaHessian.__init__`
@@ -54,6 +60,8 @@ for i, (input, output) in enumerate(data):
 | `update_each` (int, optional)   | compute the hessian trace approximation only after *this* number of steps (to save time) *(default: 1)* |
 | `distributed` (bool, optional)   | use a distributed version which shares the hessian traces across multiple GPUs *(default: False)* |
 
+<br>
+
 #### `AdaHessian.step`
 
 Performs a single optimization step.
@@ -62,10 +70,13 @@ Performs a single optimization step.
 | :-------------- | :-------------- |
 | `closure` (callable, optional)        | a closure that reevaluates the model and returns the loss *(default: None)* |
 
+<br>
+
 #### `AdaHessian.set_hessian`
 
 Computes the Hutchinson approximation of the hessian trace and accumulates it for each trainable parameter. It is called automatically when `auto_hessian == True`.
 
+<br>
 
 #### `AdaHessian.zero_hessian`
 
