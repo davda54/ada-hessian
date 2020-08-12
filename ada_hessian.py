@@ -2,7 +2,7 @@ import torch
 import torch.distributed as dist
 
 
-class AdaHessian(torch.optim.optimizer.Optimizer):
+class AdaHessian(torch.optim.Optimizer):
     def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-4, weight_decay=0.0, hessian_power=1.0, auto_hessian=True, update_each=1, distributed=False):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
