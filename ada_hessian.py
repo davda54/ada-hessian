@@ -5,15 +5,17 @@ import torch.distributed as dist
 class AdaHessian(torch.optim.Optimizer):
     def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-4, weight_decay=0.0, hessian_power=1.0, auto_hessian=True, update_each=1, distributed=False):
         if not 0.0 <= lr:
-            raise ValueError("Invalid learning rate: {}".format(lr))
+            raise ValueError(f"Invalid learning rate: {lr}")
         if not 0.0 <= eps:
-            raise ValueError("Invalid epsilon value: {}".format(eps))
+            raise ValueError(f"Invalid epsilon value: {eps}")
         if not 0.0 <= betas[0] < 1.0:
-            raise ValueError("Invalid beta parameter at index 0: {}".format(betas[0]))
+            raise ValueError(f"Invalid beta parameter at index 0: {betas[0]}")
         if not 0.0 <= betas[1] < 1.0:
-            raise ValueError("Invalid beta parameter at index 1: {}".format(betas[1]))
+            raise ValueError(f"Invalid beta parameter at index 1: {betas[1]}")
         if not 0.0 <= hessian_power <= 1.0:
-            raise ValueError("Invalid Hessian power value: {}".format(hessian_power))
+            raise ValueError(f"Invalid Hessian power value: {hessian_power}")
+        if not auto_hessian and update_each > 1:
+            raise ValueError(f"Delayed hessian update is not supported for manual updates, delay: {update_each}")
 
         self.update_each = update_each
         self.auto_hessian = auto_hessian
@@ -76,7 +78,7 @@ class AdaHessian(torch.optim.Optimizer):
                 state = self.state[p]
 
                 # State initialization
-                if len(state) == 0:
+                if len(state) == 1:
                     state['step'] = 0
                     state['exp_avg'] = torch.zeros_like(p.data)  # Exponential moving average of gradient values
                     state['exp_hessian_diag_sq'] = torch.zeros_like(p.data)  # Exponential moving average of Hessian diagonal square values
