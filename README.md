@@ -51,7 +51,7 @@ for i, (input, output) in enumerate(data):
 | `weight_decay` (float, optional)   | weight decay (L2 penalty) *(default: 0.0)* |
 | `hessian_power` (float, optional)  | exponent of the hessian trace *(default: 1.0)* |
 | `auto_hessian` (bool, optional)  | automatically call `set_hessian()` and `zero_hessian()` within each step *(default: True)* |
-| `update_each` (int, optional)   | compute the hessian trace approximation after this number of steps (to save time) *(default: 1)* |
+| `update_each` (int, optional)   | compute the hessian trace approximation only after *this* number of steps (to save time) *(default: 1)* |
 | `distributed` (bool, optional)   | use a distributed version which shares the hessian traces across multiple GPUs *(default: False)* |
 
 #### `AdaHessian.step`
