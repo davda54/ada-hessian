@@ -14,7 +14,7 @@ optimizer = AdaHessian(model.parameters())
 ...
 for input, output in data:
   loss = loss_function(output, model(input))
-  loss.backward(create_graph=True)  # this is the important line!
+  loss.backward(create_graph=True)  # this is the important line! 🧐
   optimizer.step()
 ...
 ```
@@ -69,4 +69,4 @@ Computes the Hutchinson approximation of the hessian trace and accumulates it fo
 
 #### `AdaHessian.zero_hessian`
 
-Zeros- ut the accumalated hessian traces. It is called automatically when `auto_hessian == True`.
+Zeros out the accumalated hessian traces. It is called automatically when `auto_hessian == True`.
