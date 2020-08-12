@@ -17,6 +17,7 @@ model = YourModel()
 optimizer = AdaHessian(model.parameters())
 ...
 for input, output in data:
+  optimizer.zero_grad()
   loss = loss_function(output, model(input))
   loss.backward(create_graph=True)  # this is the important line! 🧐
   optimizer.step()
@@ -33,6 +34,7 @@ model = YourModel()
 optimizer = AdaHessian(model.parameters(), auto_hess=False)
 ...
 for i, (input, output) in enumerate(data):
+  optimizer.zero_grad()
   loss = loss_function(output, model(input)) / accumulation_steps
   loss.backward(create_graph=True)
   optimizer.set_hessian()  # accumulate the hessian trace for each parameter
