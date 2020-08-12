@@ -3,7 +3,7 @@ import torch.distributed as dist
 
 
 class AdaHessian(torch.optim.optimizer.Optimizer):
-    def __init__(self, params, lr=0.15, betas=(0.9, 0.999), eps=1e-4, weight_decay=0, hessian_power=1, auto_hess=True, distributed=False):
+    def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-4, weight_decay=0.0, hessian_power=1.0, auto_hessian=True, update_each=1, distributed=False):
         if not 0.0 <= lr:
             raise ValueError("Invalid learning rate: {}".format(lr))
         if not 0.0 <= eps:
@@ -15,7 +15,8 @@ class AdaHessian(torch.optim.optimizer.Optimizer):
         if not 0.0 <= hessian_power <= 1.0:
             raise ValueError("Invalid Hessian power value: {}".format(hessian_power))
 
-        self.auto_hess = auto_hess
+        self.update_each = update_each
+        self.auto_hessian = auto_hessian
         self.distributed = distributed
 
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, hessian_power=hessian_power)
@@ -23,22 +24,36 @@ class AdaHessian(torch.optim.optimizer.Optimizer):
 
         for p in self.get_params():
             p.hess = 0.0
+            self.state[p]["hessian step"] = 0
 
     def get_params(self):
         return (p for group in self.param_groups for p in group['params'] if p.requires_grad)
+    
+    def zero_hessian(self):
+        for p in self.get_params():
+            if not isinstance(p.hess, float) and self.state[p]["hessian step"] % self.update_each == 0:
+                p.hess.zero_()
 
     @torch.no_grad()
-    def set_hess(self):
-        params = [p for p in self.get_params() if p.grad is not None]
+    def set_hessian(self):
+        params = []
+        for p in filter(lambda p: p.grad is not None, self.get_params()):
+            if self.state[p]["hessian step"] % self.update_each == 0:  # compute the trace only each `update_each` step
+                params.append(p)
+            self.state[p]["hessian step"] += 1
+
+        if len(params) == 0:
+            return
+
         grads = [p.grad for p in params]
 
-        z = [torch.randint_like(p, high=2) * 2 - 1 for p in params]  # Rademacher distribution {-1.0, 1.0}
+        zs = [torch.randint_like(p, high=2) * 2 - 1 for p in params]  # Rademacher distribution {-1.0, 1.0}
         if self.distributed:
-            dist.all_reduce_multigpu(z, op=dist.ReduceOp.PRODUCT)  # make sure the result is still from Rademacher distribution
+            dist.all_reduce_multigpu(zs, op=dist.ReduceOp.PRODUCT)  # make sure the result is still from Rademacher distribution
 
         h_zs = torch.autograd.grad(grads, params, grad_outputs=z, only_inputs=True, retain_graph=False)
-        for h_z, z_i, p in zip(h_zs, z, params):
-            p.hess += h_z * z_i
+        for h_z, z, p in zip(h_zs, zs, params):
+            p.hess += h_z * z  # enable accumulating hessians
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -46,15 +61,16 @@ class AdaHessian(torch.optim.optimizer.Optimizer):
         if closure is not None:
             loss = closure()
 
-        if self.auto_hess:
-            self.set_hess()
+        if self.auto_hessian:
+            self.zero_hessian()
+            self.set_hessian()
 
         for group in self.param_groups:
             for p in group['params']:
                 if p.grad is None or p.hess is None:
                     continue
 
-                # Perform stepweight decay
+                # Perform correct stepweight decay as in AdamW
                 p.mul_(1 - group['lr'] * group['weight_decay'])
 
                 state = self.state[p]
@@ -82,7 +98,5 @@ class AdaHessian(torch.optim.optimizer.Optimizer):
                 # make update
                 step_size = group['lr'] / bias_correction1
                 p.addcdiv_(exp_avg, denom, value=-step_size)
-
-                p.hess = 0
 
         return loss
