@@ -4,8 +4,6 @@ Unofficial implementation of the [AdaHessian optimizer](https://arxiv.org/abs/20
 
 Our version supports multiple `param_groups`, gradient (hessian) accumulation and delayed hessian updates.
 
-<br>
-
 ## Usage
 
 #### Simple example
@@ -34,12 +32,12 @@ model = YourModel()
 optimizer = AdaHessian(model.parameters(), auto_hess=False)
 ...
 for i, (input, output) in enumerate(data):
-  optimizer.zero_grad()
   loss = loss_function(output, model(input)) / accumulation_steps
   loss.backward(create_graph=True)
   optimizer.set_hessian()  # accumulate the hessian trace for each parameter
   if (i + 1) % accumulation_steps == 0:
     optimizer.step()
+    optimizer.zero_grad()
     optimizer.zero_hessian()  # zero out the hessian trace for each parameter
 ...
 ```
