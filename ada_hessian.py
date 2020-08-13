@@ -3,7 +3,7 @@ import torch.distributed as dist
 
 
 class AdaHessian(torch.optim.Optimizer):
-    def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-4, weight_decay=0.0, hessian_power=1.0, auto_hessian=True, update_each=1, distributed=False):
+    def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0, hessian_power=1.0, auto_hessian=True, update_each=1, distributed=False):
         if not 0.0 <= lr:
             raise ValueError(f"Invalid learning rate: {lr}")
         if not 0.0 <= eps:
@@ -88,8 +88,8 @@ class AdaHessian(torch.optim.Optimizer):
                 state['step'] += 1
 
                 # Decay the first and second moment running average coefficient
-                exp_avg.mul_(beta1).add_(1 - beta1, p.grad)
-                exp_hessian_diag_sq.mul_(beta2).addcmul_(1 - beta2, p.hess, p.hess)
+                exp_avg.mul_(beta1).add_(p.grad, alpha=1 - beta1)
+                exp_hessian_diag_sq.mul_(beta2).addcmul_(p.hess, p.hess, value=1 - beta2)
 
                 bias_correction1 = 1 - beta1 ** state['step']
                 bias_correction2 = 1 - beta2 ** state['step']
