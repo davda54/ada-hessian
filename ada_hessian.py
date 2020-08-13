@@ -51,7 +51,7 @@ class AdaHessian(torch.optim.Optimizer):
 
         zs = [torch.randint_like(p, high=2) * 2 - 1 for p in params]  # Rademacher distribution {-1.0, 1.0}
         if self.distributed:
-            dist.all_reduce_multigpu(zs, op=dist.ReduceOp.PRODUCT)  # make sure the result is still from Rademacher distribution
+            dist.all_reduce(zs, op=dist.ReduceOp.PRODUCT)  # make sure the result is still from Rademacher distribution
 
         h_zs = torch.autograd.grad(grads, params, grad_outputs=zs, only_inputs=True, retain_graph=False)
         for h_z, z, p in zip(h_zs, zs, params):
