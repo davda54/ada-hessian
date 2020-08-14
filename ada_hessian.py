@@ -3,7 +3,7 @@ import torch.distributed as dist
 
 
 class AdaHessian(torch.optim.Optimizer):
-    def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0, hessian_power=1.0, auto_hessian=True, update_each=1, distributed=False):
+    def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0, hessian_power=1.0, auto_hessian=True, update_each=1):
         if not 0.0 <= lr:
             raise ValueError(f"Invalid learning rate: {lr}")
         if not 0.0 <= eps:
@@ -19,7 +19,9 @@ class AdaHessian(torch.optim.Optimizer):
 
         self.update_each = update_each
         self.auto_hessian = auto_hessian
-        self.distributed = distributed
+
+        # use a separate generator that deterministically generates the same `z`s across all GPUs in case of distributed training
+        self.generator = torch.Generator().manual_seed(2147483647) 
 
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, hessian_power=hessian_power)
         super(AdaHessian, self).__init__(params, defaults)
@@ -47,12 +49,11 @@ class AdaHessian(torch.optim.Optimizer):
         if len(params) == 0:
             return
 
-        grads = [p.grad for p in params]
+        if self.generator.device != params[0].device:  # hackish way of casting the generator to the right device
+            self.generator = torch.Generator(params[0].device).manual_seed(2147483647)
 
-        zs = [torch.randint_like(p, high=2) * 2 - 1 for p in params]  # Rademacher distribution {-1.0, 1.0}
-        if self.distributed:
-            for z in zs:
-                dist.all_reduce(z, op=dist.ReduceOp.PRODUCT)  # make sure the result is still from Rademacher distribution
+        grads = [p.grad for p in params]
+        zs = [torch.randint(0, 2, p.size(), generator=self.generator, device=p.device) * 2.0 - 1.0 for p in params]  # Rademacher distribution {-1.0, 1.0}
 
         h_zs = torch.autograd.grad(grads, params, grad_outputs=zs, only_inputs=True, retain_graph=False)
         for h_z, z, p in zip(h_zs, zs, params):
