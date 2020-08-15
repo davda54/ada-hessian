@@ -2,7 +2,7 @@
 
 Unofficial implementation of the [AdaHessian optimizer](https://arxiv.org/abs/2006.00719). Created as a drop-in replacement for any PyTorch optimizer – you only need to set `create_graph=True` in the `backward()` call and everything else should work 🥳
 
-Our version supports multiple `param_groups`, gradient (hessian) accumulation and delayed hessian updates.
+Our version supports multiple `param_groups`, gradient (hessian) accumulation, distributed training and delayed hessian updates.
 
 ## Usage
 
@@ -29,7 +29,7 @@ Our code also allows you to have more control over computing the hessian traces.
 from ada_hessian import AdaHessian
 ...
 model = YourModel()
-optimizer = AdaHessian(model.parameters(), auto_hess=False)
+optimizer = AdaHessian(model.parameters(), auto_hessian=False)
 ...
 for i, (input, output) in enumerate(data):
   loss = loss_function(output, model(input)) / accumulation_steps
@@ -58,7 +58,6 @@ for i, (input, output) in enumerate(data):
 | `hessian_power` (float, optional)  | exponent of the hessian trace *(default: 1.0)* |
 | `auto_hessian` (bool, optional)  | automatically call `set_hessian()` and `zero_hessian()` within each step *(default: True)* |
 | `update_each` (int, optional)   | compute the hessian trace approximation only after *this* number of steps (to save time) *(default: 1)* |
-| `distributed` (bool, optional)   | use a distributed version which shares the hessian traces across multiple GPUs *(default: False)* |
 
 <br>
 
