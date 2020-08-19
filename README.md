@@ -2,7 +2,7 @@
 
 Unofficial implementation of the [AdaHessian optimizer](https://arxiv.org/abs/2006.00719). Created as a drop-in replacement for any PyTorch optimizer – you only need to set `create_graph=True` in the `backward()` call and everything else should work 🥳
 
-Our version supports multiple `param_groups`, gradient (hessian) accumulation, distributed training and delayed hessian updates.
+Our version supports multiple `param_groups`, distributed training, delayed Hessian updates and more precise approximation of the Hessian trace.
 
 ## Usage
 
