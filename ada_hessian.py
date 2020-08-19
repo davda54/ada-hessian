@@ -1,9 +1,8 @@
 import torch
-import torch.distributed as dist
 
 
 class AdaHessian(torch.optim.Optimizer):
-    def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0, hessian_power=1.0, auto_hessian=True, update_each=1):
+    def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0, hessian_power=1.0, update_each=1, n_samples=1):
         if not 0.0 <= lr:
             raise ValueError(f"Invalid learning rate: {lr}")
         if not 0.0 <= eps:
@@ -14,14 +13,12 @@ class AdaHessian(torch.optim.Optimizer):
             raise ValueError(f"Invalid beta parameter at index 1: {betas[1]}")
         if not 0.0 <= hessian_power <= 1.0:
             raise ValueError(f"Invalid Hessian power value: {hessian_power}")
-        if not auto_hessian and update_each > 1:
-            raise ValueError(f"Delayed hessian update is not supported for manual updates, delay: {update_each}")
 
+        self.n_samples
         self.update_each = update_each
-        self.auto_hessian = auto_hessian
 
         # use a separate generator that deterministically generates the same `z`s across all GPUs in case of distributed training
-        self.generator = torch.Generator().manual_seed(2147483647) 
+        self.generator = torch.Generator().manual_seed(2147483647)
 
         defaults = dict(lr=lr, betas=betas, eps=eps, weight_decay=weight_decay, hessian_power=hessian_power)
         super(AdaHessian, self).__init__(params, defaults)
@@ -32,7 +29,7 @@ class AdaHessian(torch.optim.Optimizer):
 
     def get_params(self):
         return (p for group in self.param_groups for p in group['params'] if p.requires_grad)
-    
+
     def zero_hessian(self):
         for p in self.get_params():
             if not isinstance(p.hess, float) and self.state[p]["hessian step"] % self.update_each == 0:
@@ -53,11 +50,12 @@ class AdaHessian(torch.optim.Optimizer):
             self.generator = torch.Generator(params[0].device).manual_seed(2147483647)
 
         grads = [p.grad for p in params]
-        zs = [torch.randint(0, 2, p.size(), generator=self.generator, device=p.device) * 2.0 - 1.0 for p in params]  # Rademacher distribution {-1.0, 1.0}
 
-        h_zs = torch.autograd.grad(grads, params, grad_outputs=zs, only_inputs=True, retain_graph=False)
-        for h_z, z, p in zip(h_zs, zs, params):
-            p.hess += h_z * z  # enable accumulating hessians
+        for _ in range(self.n_samples):
+            zs = [torch.randint(0, 2, p.size(), generator=self.generator, device=p.device) * 2.0 - 1.0 for p in params]  # Rademacher distribution {-1.0, 1.0}
+            h_zs = torch.autograd.grad(grads, params, grad_outputs=zs, only_inputs=True, retain_graph=False)
+            for h_z, z, p in zip(h_zs, zs, params):
+                p.hess += h_z * z / self.n_samples  # approximate the expected values of z*(H@z)
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -65,9 +63,8 @@ class AdaHessian(torch.optim.Optimizer):
         if closure is not None:
             loss = closure()
 
-        if self.auto_hessian:
-            self.zero_hessian()
-            self.set_hessian()
+        self.zero_hessian()
+        self.set_hessian()
 
         for group in self.param_groups:
             for p in group['params']:
