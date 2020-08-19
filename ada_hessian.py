@@ -28,7 +28,7 @@ class AdaHessian(torch.optim.Optimizer):
         if not 0.0 <= hessian_power <= 1.0:
             raise ValueError(f"Invalid Hessian power value: {hessian_power}")
 
-        self.n_samples
+        self.n_samples = n_samples
         self.update_each = update_each
 
         # use a separate generator that deterministically generates the same `z`s across all GPUs in case of distributed training
