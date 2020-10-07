@@ -16,7 +16,8 @@ class AdaHessian(torch.optim.Optimizer):
         n_samples (int, optional) -- how many times to sample `z` for the approximation of the hessian trace (default: 1)
     """
 
-    def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0, hessian_power=1.0, update_each=1, n_samples=1):
+    def __init__(self, params, lr=0.1, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0, 
+                 hessian_power=1.0, update_each=1, n_samples=1, average_conv_kernel=False):
         if not 0.0 <= lr:
             raise ValueError(f"Invalid learning rate: {lr}")
         if not 0.0 <= eps:
@@ -30,6 +31,7 @@ class AdaHessian(torch.optim.Optimizer):
 
         self.n_samples = n_samples
         self.update_each = update_each
+        self.average_conv_kernel = average_conv_kernel
 
         # use a separate generator that deterministically generates the same `z`s across all GPUs in case of distributed training
         self.generator = torch.Generator().manual_seed(2147483647)
@@ -102,6 +104,9 @@ class AdaHessian(torch.optim.Optimizer):
             for p in group['params']:
                 if p.grad is None or p.hess is None:
                     continue
+
+                if self.average_conv_kernel and p.dim() == 4:
+                    p.hess = torch.abs(p.hess).mean(dim=[2, 3], keepdim=True).expand_as(p.hess).clone()
 
                 # Perform correct stepweight decay as in AdamW
                 p.mul_(1 - group['lr'] * group['weight_decay'])

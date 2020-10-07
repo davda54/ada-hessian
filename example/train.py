@@ -14,6 +14,7 @@ from ada_hessian import AdaHessian
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--average_conv_kernel", dest="average_conv_kernel", action="store_true", default=False)
     parser.add_argument("--batch_size", default=128, type=int, help="Batch size used in the training and validation loop.")
     parser.add_argument("--depth", default=16, type=int, help="Number of layers.")
     parser.add_argument("--dropout", default=0.0, type=float, help="Dropout rate.")
@@ -35,7 +36,13 @@ if __name__ == "__main__":
     model = WideResNet(args.depth, args.width_factor, args.dropout, in_channels=3, labels=10).to(device)
 
     if args.optimizer == "ada_hessian":
-        optimizer = AdaHessian(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay, update_each=args.update_each)
+        optimizer = AdaHessian(
+            model.parameters(),
+            lr=args.learning_rate,
+            weight_decay=args.weight_decay,
+            update_each=args.update_each,
+            average_conv_kernel=args.average_conv_kernel
+        )
     else:
         optimizer = SGD(model.parameters(), lr=args.learning_rate, momentum=0.9, nesterov=True, weight_decay=args.weight_decay)
 

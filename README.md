@@ -36,7 +36,7 @@ for input, output in data:
 | `hessian_power` (float, optional)  | exponent of the hessian trace *(default: 1.0)* |
 | `update_each` (int, optional)   | compute the hessian trace approximation only after *this* number of steps (to save time) *(default: 1)* |
 | `n_samples` (int, optional) | how many times to sample `z` for the approximation of the hessian trace *(default: 1)* |
-
+| `average_conv_kernel` (bool, optional) | average out the hessian traces of convolutional kernels as in the original paper *(default: false)* |
 
 <br>
 
